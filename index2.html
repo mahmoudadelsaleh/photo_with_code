@@ -1,0 +1,95 @@
+<!DOCTYPE html><html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إعادة تسمية الصور بالكود</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<style>
+body{font-family:Arial;background:#111;color:#fff;text-align:center;padding:20px}
+input,button{margin:10px;padding:10px;font-size:16px}
+#log{white-space:pre-line;background:#222;padding:10px;margin-top:20px;height:200px;overflow:auto}
+</style>
+</head>
+<body>
+<h2>إعادة تسمية الصور من Excel</h2><input type="file" id="excel" accept=".xlsx,.xls"><br> <input type="file" id="images" accept="image/*" multiple><br> <button onclick="startProcess()">ابدأ المعالجة</button>
+
+<div id="log"></div><script>
+let nameCodeMap={}
+
+function log(t){document.getElementById('log').innerText+=t+"\n"}
+
+function readExcel(file){
+return new Promise(res=>{
+const reader=new FileReader()
+reader.onload=e=>{
+const data=new Uint8Array(e.target.result)
+const wb=XLSX.read(data,{type:'array'})
+const sheet=wb.Sheets[wb.SheetNames[0]]
+const json=XLSX.utils.sheet_to_json(sheet)
+json.forEach(r=>{
+if(r['الاسم'] && r['الكود']){
+nameCodeMap[r['الاسم'].trim()]=String(r['الكود']).trim()
+}
+})
+res()
+}
+reader.readAsArrayBuffer(file)
+})
+}
+
+async function ocrImage(file){
+const { data:{ text } } = await Tesseract.recognize(file,'ara')
+return text.replace(/\n/g,' ').trim()
+}
+
+async function startProcess(){
+const excelFile=document.getElementById('excel').files[0]
+const images=document.getElementById('images').files
+
+if(!excelFile||images.length==0){alert('ارفع Excel والصور');return}
+
+log('قراءة ملف Excel...')
+await readExcel(excelFile)
+log('تم تحميل الأسماء: '+Object.keys(nameCodeMap).length)
+
+const zip=new JSZip()
+
+for(let img of images){
+log('قراءة الصورة: '+img.name)
+
+let text=await ocrImage(img)
+
+let foundName=null
+
+for(let name in nameCodeMap){
+if(text.includes(name)){
+foundName=name
+break
+}
+}
+
+if(foundName){
+const code=nameCodeMap[foundName]
+const ext=img.name.split('.').pop()
+const newName=code+'.'+ext
+zip.file(newName,img)
+log('✔ '+foundName+' → '+newName)
+}else{
+log('✖ لم يتم التعرف على الاسم في '+img.name)
+}
+}
+
+log('جاري إنشاء الملف...')
+const blob=await zip.generateAsync({type:'blob'})
+
+const a=document.createElement('a')
+a.href=URL.createObjectURL(blob)
+a.download='renamed_images.zip'
+a.click()
+
+log('تم الانتهاء ✔')
+}
+</script></body>
+</html>
