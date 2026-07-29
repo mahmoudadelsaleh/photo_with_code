@@ -3,102 +3,353 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مُقسِّم ملفات الإكسيل</title>
+    <title>مُقسِّم ملفات الإكسيل المتقدم</title>
     <!-- استدعاء مكتبة SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; padding: 40px; text-align: center; }
-        .container { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
-        input[type="file"] { margin: 20px 0; padding: 10px; border: 1px dashed #ccc; border-radius: 6px; width: 100%; box-sizing: border-box; }
-        button { background-color: #28a745; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 6px; cursor: pointer; transition: 0.3s; }
-        button:hover { background-color: #218838; }
-        #status { margin-top: 20px; font-weight: bold; color: #555; }
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #0f172a;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --error: #ef4444;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 600px;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            color: var(--text);
+            font-size: 1.5rem;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--primary);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            background: #eff6ff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .upload-area:hover {
+            background: #dbeafe;
+        }
+
+        .upload-area input[type="file"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-details {
+            display: none;
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border: 1px solid var(--border);
+        }
+
+        .file-details p {
+            margin: 5px 0;
+            font-size: 0.95rem;
+        }
+
+        .settings-group {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .settings-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .settings-group input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        button.start-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 14px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: 0.3s;
+            display: none;
+        }
+
+        button.start-btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        button.start-btn:disabled {
+            background-color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        /* صندوق السجل (التقدم والأخطاء) */
+        .log-box {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            display: none;
+        }
+
+        .log-entry { margin-bottom: 5px; }
+        .log-time { color: #94a3b8; font-size: 0.8rem; margin-left: 8px; }
+        .log-info { color: #38bdf8; }
+        .log-success { color: #4ade80; }
+        .log-error { color: #f87171; }
+        .log-warning { color: #facc15; }
+
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>أداة تقسيم الإكسيل (أوفلاين)</h2>
-        <p>اختر ملفك (35 ميجا). ستتم معالجته وتقسيمه داخل متصفحك دون رفعه لأي سيرفر.</p>
+        <h2>أداة تقسيم الإكسيل الاحترافية</h2>
         
-        <input type="file" id="fileInput" accept=".xlsx, .xls, .csv">
-        <br>
-        <button onclick="processFile()">ابدأ التقسيم</button>
+        <div class="upload-area">
+            <input type="file" id="fileInput" accept=".xlsx, .xls, .csv">
+            <svg style="width:48px;height:48px;color:#2563eb;margin-bottom:10px" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+            <div style="font-weight: bold;">اضغط هنا لاختيار الملف</div>
+            <div style="font-size: 0.85rem; color: #64748b; margin-top: 5px;">يدعم صيغ XLSX, XLS, CSV</div>
+        </div>
+
+        <div class="file-details" id="fileDetails">
+            <h4 style="margin-top: 0; color: var(--primary);">تفاصيل الملف:</h4>
+            <p><strong>الاسم:</strong> <span id="fileName">-</span></p>
+            <p><strong>الحجم الإجمالي:</strong> <span id="fileSize">-</span></p>
+        </div>
+
+        <div class="settings-group" id="settingsGroup">
+            <label for="splitCount">تقسيم الملف إلى (عدد الأجزاء):</label>
+            <input type="number" id="splitCount" min="2" max="50" value="2">
+            <p style="font-size: 0.85rem; color: var(--text-light); margin-top: 8px;">
+                <strong>الحجم المتوقع لكل ملف:</strong> <span id="expectedSize" style="color: var(--primary); font-weight: bold;">-</span>
+                <br>
+                <small>(هذا الحجم تقريبي وقد يختلف قليلاً بعد إعادة ضغط الملف)</small>
+            </p>
+        </div>
+
+        <button class="start-btn" id="startBtn" onclick="processFile()">البدء في التقسيم الآن</button>
         
-        <p id="status"></p>
+        <div class="log-box" id="logBox"></div>
     </div>
 
     <script>
-        function processFile() {
-            const fileInput = document.getElementById('fileInput');
-            const status = document.getElementById('status');
+        const fileInput = document.getElementById('fileInput');
+        const fileDetails = document.getElementById('fileDetails');
+        const settingsGroup = document.getElementById('settingsGroup');
+        const startBtn = document.getElementById('startBtn');
+        const logBox = document.getElementById('logBox');
+        const splitCountInput = document.getElementById('splitCount');
+        
+        let currentFile = null;
 
-            if (!fileInput.files.length) {
-                status.style.color = "red";
-                status.innerText = "يرجى اختيار ملف أولاً!";
+        // دالة تحويل حجم الملف لصيغة مقروءة
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        // دالة إضافة سجلات في صندوق التتبع
+        function addLog(msg, type = 'info') {
+            logBox.style.display = 'block';
+            const time = new Date().toLocaleTimeString('ar-EG');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.innerHTML = `<span class="log-time">[${time}]</span> ${msg}`;
+            logBox.appendChild(logEntry);
+            logBox.scrollTop = logBox.scrollHeight; // التمرير التلقائي للأسفل
+        }
+
+        // تحديث الحجم المتوقع
+        function updateExpectedSize() {
+            if (!currentFile) return;
+            const splits = parseInt(splitCountInput.value) || 2;
+            const expectedBytes = currentFile.size / splits;
+            document.getElementById('expectedSize').textContent = formatBytes(expectedBytes);
+        }
+
+        // عند اختيار ملف
+        fileInput.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                currentFile = e.target.files[0];
+                
+                // إظهار التفاصيل
+                document.getElementById('fileName').textContent = currentFile.name;
+                document.getElementById('fileSize').textContent = formatBytes(currentFile.size);
+                
+                fileDetails.style.display = 'block';
+                settingsGroup.style.display = 'block';
+                startBtn.style.display = 'block';
+                logBox.innerHTML = ''; // مسح السجل القديم
+                logBox.style.display = 'none';
+                
+                updateExpectedSize();
+            }
+        });
+
+        // عند تغيير عدد التقسيمات
+        splitCountInput.addEventListener('input', updateExpectedSize);
+
+        // دالة معالجة وتقسيم الملف
+        async function processFile() {
+            if (!currentFile) return;
+            
+            const splits = parseInt(splitCountInput.value);
+            if (splits < 2) {
+                alert('يجب أن يكون عدد التقسيمات 2 أو أكثر');
                 return;
             }
 
-            const file = fileInput.files[0];
+            // تعطيل الزر لتجنب الضغط المزدوج
+            startBtn.disabled = true;
+            startBtn.textContent = 'جاري المعالجة... يرجى الانتظار';
+            logBox.innerHTML = '';
+            
+            addLog(`تم بدء العملية. الملف: ${currentFile.name}`, 'info');
+            addLog(`عدد الأجزاء المطلوبة: ${splits}`, 'info');
+            
             const reader = new FileReader();
 
-            status.style.color = "blue";
-            status.innerText = "جاري المعالجة في الذاكرة... يرجى الانتظار (الملفات الكبيرة تأخذ ثوانٍ معدودة)";
-
-            // قراءة الملف كـ ArrayBuffer
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
-                    const data = new Uint8Array(e.target.result);
+                    addLog('تمت قراءة الملف في الذاكرة بنجاح. جاري التحليل...', 'success');
                     
-                    // قراءة الملف باستخدام مكتبة SheetJS
-                    const workbook = XLSX.read(data, {type: 'array'});
-                    
-                    // افتراض أننا نريد تقسيم الشيت الأول فقط
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    
-                    // تحويل الشيت إلى مصفوفة (Array) لتسهيل التقسيم
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
-                    
-                    if (jsonData.length <= 1) {
-                        status.style.color = "red";
-                        status.innerText = "الملف فارغ أو يحتوي على صف العناوين فقط!";
-                        return;
-                    }
+                    // استخدام setTimeout لإعطاء المتصفح فرصة لتحديث واجهة المستخدم (السجل)
+                    setTimeout(() => {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, {type: 'array'});
+                            
+                            const firstSheetName = workbook.SheetNames[0];
+                            addLog(`تم العثور على ورقة العمل: ${firstSheetName}`, 'info');
+                            
+                            const worksheet = workbook.Sheets[firstSheetName];
+                            
+                            addLog('جاري استخراج البيانات...', 'info');
+                            const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+                            
+                            if (jsonData.length <= 1) {
+                                throw new Error("الملف فارغ أو يحتوي على صف العناوين فقط!");
+                            }
 
-                    // فصل صف العناوين (الهيدر) للحفاظ عليه في الملفين
-                    const header = jsonData[0];
-                    const rows = jsonData.slice(1);
-                    
-                    // تحديد نقطة المنتصف
-                    const midPoint = Math.ceil(rows.length / 2);
-                    
-                    // دمج العناوين مع البيانات المقسمة
-                    const part1Data = [header, ...rows.slice(0, midPoint)];
-                    const part2Data = [header, ...rows.slice(midPoint)];
+                            const header = jsonData[0];
+                            const rows = jsonData.slice(1);
+                            const totalRows = rows.length;
+                            
+                            addLog(`إجمالي الصفوف (بدون العناوين): ${totalRows} صف`, 'info');
+                            
+                            // حساب عدد الصفوف لكل ملف
+                            const rowsPerFile = Math.ceil(totalRows / splits);
+                            addLog(`سيتم وضع تقريباً ${rowsPerFile} صف في كل ملف.`, 'info');
+                            addLog('ملاحظة: المتصفح قد يطلب إذنك لتحميل ملفات متعددة معاً، يرجى الموافقة.', 'warning');
 
-                    // تحويل المصفوفات الجديدة إلى ملفات إكسيل
-                    const wb1 = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(wb1, XLSX.utils.aoa_to_sheet(part1Data), "Part 1");
-                    
-                    const wb2 = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(wb2, XLSX.utils.aoa_to_sheet(part2Data), "Part 2");
+                            let generatedCount = 0;
 
-                    // إجبار المتصفح على تحميل الملفين
-                    XLSX.writeFile(wb1, "Split_Part_1.xlsx");
-                    XLSX.writeFile(wb2, "Split_Part_2.xlsx");
+                            // حلقة التقسيم وإنشاء الملفات
+                            for (let i = 0; i < splits; i++) {
+                                const startRow = i * rowsPerFile;
+                                const endRow = startRow + rowsPerFile;
+                                const chunk = rows.slice(startRow, endRow);
+                                
+                                if (chunk.length === 0) break; // لا يوجد بيانات إضافية
 
-                    status.style.color = "green";
-                    status.innerText = "تم التقسيم وتحميل الملفين بنجاح!";
+                                const partData = [header, ...chunk];
+                                const newWb = XLSX.utils.book_new();
+                                XLSX.utils.book_append_sheet(newWb, XLSX.utils.aoa_to_sheet(partData), "Data");
+                                
+                                // استخراج اسم الملف الأصلي بدون الامتداد
+                                const originalName = currentFile.name.substring(0, currentFile.name.lastIndexOf('.')) || currentFile.name;
+                                const newFileName = `${originalName}_Part_${i + 1}.xlsx`;
+                                
+                                // حفظ الملف
+                                XLSX.writeFile(newWb, newFileName);
+                                addLog(`تم إنشاء وتحميل الملف: ${newFileName} (يحتوي على ${chunk.length} صف)`, 'success');
+                                generatedCount++;
+                            }
+
+                            addLog(`تم الانتهاء بنجاح! تم توليد ${generatedCount} ملفات.`, 'success');
+
+                        } catch (error) {
+                            addLog(`حدث خطأ أثناء المعالجة: ${error.message}`, 'error');
+                            console.error(error);
+                        } finally {
+                            // إعادة تفعيل الزر
+                            startBtn.disabled = false;
+                            startBtn.textContent = 'البدء في التقسيم الآن';
+                        }
+                    }, 500); // تأخير نصف ثانية للسماح للـ UI بالتحديث
+
                 } catch (error) {
-                    console.error(error);
-                    status.style.color = "red";
-                    status.innerText = "حدث خطأ أثناء المعالجة: " + error.message;
+                    addLog(`حدث خطأ في القراءة: ${error.message}`, 'error');
+                    startBtn.disabled = false;
+                    startBtn.textContent = 'البدء في التقسيم الآن';
                 }
             };
 
-            // تشغيل القراءة
-            reader.readAsArrayBuffer(file);
+            reader.onerror = function() {
+                addLog('فشل في قراءة الملف من الجهاز.', 'error');
+                startBtn.disabled = false;
+                startBtn.textContent = 'البدء في التقسيم الآن';
+            };
+
+            addLog('جاري تحميل بيانات الملف للذاكرة (قد يستغرق ثوانٍ للملفات الكبيرة)...', 'info');
+            reader.readAsArrayBuffer(currentFile);
         }
     </script>
 </body>
