@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مُقسِّم ملفات الإكسيل</title>
+    <!-- استدعاء مكتبة SheetJS -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; padding: 40px; text-align: center; }
+        .container { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
+        input[type="file"] { margin: 20px 0; padding: 10px; border: 1px dashed #ccc; border-radius: 6px; width: 100%; box-sizing: border-box; }
+        button { background-color: #28a745; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 6px; cursor: pointer; transition: 0.3s; }
+        button:hover { background-color: #218838; }
+        #status { margin-top: 20px; font-weight: bold; color: #555; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>أداة تقسيم الإكسيل (أوفلاين)</h2>
+        <p>اختر ملفك (35 ميجا). ستتم معالجته وتقسيمه داخل متصفحك دون رفعه لأي سيرفر.</p>
+        
+        <input type="file" id="fileInput" accept=".xlsx, .xls, .csv">
+        <br>
+        <button onclick="processFile()">ابدأ التقسيم</button>
+        
+        <p id="status"></p>
+    </div>
+
+    <script>
+        function processFile() {
+            const fileInput = document.getElementById('fileInput');
+            const status = document.getElementById('status');
+
+            if (!fileInput.files.length) {
+                status.style.color = "red";
+                status.innerText = "يرجى اختيار ملف أولاً!";
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            status.style.color = "blue";
+            status.innerText = "جاري المعالجة في الذاكرة... يرجى الانتظار (الملفات الكبيرة تأخذ ثوانٍ معدودة)";
+
+            // قراءة الملف كـ ArrayBuffer
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    
+                    // قراءة الملف باستخدام مكتبة SheetJS
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    
+                    // افتراض أننا نريد تقسيم الشيت الأول فقط
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    // تحويل الشيت إلى مصفوفة (Array) لتسهيل التقسيم
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+                    
+                    if (jsonData.length <= 1) {
+                        status.style.color = "red";
+                        status.innerText = "الملف فارغ أو يحتوي على صف العناوين فقط!";
+                        return;
+                    }
+
+                    // فصل صف العناوين (الهيدر) للحفاظ عليه في الملفين
+                    const header = jsonData[0];
+                    const rows = jsonData.slice(1);
+                    
+                    // تحديد نقطة المنتصف
+                    const midPoint = Math.ceil(rows.length / 2);
+                    
+                    // دمج العناوين مع البيانات المقسمة
+                    const part1Data = [header, ...rows.slice(0, midPoint)];
+                    const part2Data = [header, ...rows.slice(midPoint)];
+
+                    // تحويل المصفوفات الجديدة إلى ملفات إكسيل
+                    const wb1 = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb1, XLSX.utils.aoa_to_sheet(part1Data), "Part 1");
+                    
+                    const wb2 = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb2, XLSX.utils.aoa_to_sheet(part2Data), "Part 2");
+
+                    // إجبار المتصفح على تحميل الملفين
+                    XLSX.writeFile(wb1, "Split_Part_1.xlsx");
+                    XLSX.writeFile(wb2, "Split_Part_2.xlsx");
+
+                    status.style.color = "green";
+                    status.innerText = "تم التقسيم وتحميل الملفين بنجاح!";
+                } catch (error) {
+                    console.error(error);
+                    status.style.color = "red";
+                    status.innerText = "حدث خطأ أثناء المعالجة: " + error.message;
+                }
+            };
+
+            // تشغيل القراءة
+            reader.readAsArrayBuffer(file);
+        }
+    </script>
+</body>
+</html>
